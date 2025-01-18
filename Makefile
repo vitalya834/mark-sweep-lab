@@ -1,13 +1,23 @@
-BIN=markandsweep
+CC ?= cc
+CFLAGS ?= -std=c11 -Wall -Wextra -Wpedantic -Werror -O2
+CPPFLAGS ?= -Iinclude
 
-.PHONY : clean 
+.PHONY: all clean test run
 
-$(BIN) : main.c
-	$(CC)  -ggdb -std=gnu99  main.c -o $(BIN)
+all: demo test_gc
 
-clean :
-	rm -f $(BIN) *~
+demo: src/gc.c examples/demo.c include/gc.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/gc.c examples/demo.c -o $@
 
-run : $(BIN)
-	valgrind  --leak-check=yes ./$(BIN)
+test_gc: src/gc.c tests/test_gc.c include/gc.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/gc.c tests/test_gc.c -o $@
+
+test: test_gc
+	./test_gc
+
+run: demo
+	./demo
+
+clean:
+	rm -f demo test_gc demo.exe test_gc.exe *.obj
 
