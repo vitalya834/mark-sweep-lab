@@ -2,7 +2,7 @@
 
 #include <stdlib.h>
 
-#define GC_STACK_MAX 256
+#define GC_INITIAL_STACK_CAPACITY 16
 #define GC_INITIAL_THRESHOLD 8
 
 struct GcObject {
@@ -20,12 +20,38 @@ struct GcObject {
 };
 
 struct GcVm {
-  GcObject* stack[GC_STACK_MAX];
+  GcObject** stack;
   size_t stack_size;
+  size_t stack_capacity;
   GcObject* first_object;
   size_t object_count;
   size_t threshold;
 };
+
+static bool ensure_stack_capacity(GcVm* vm, size_t required) {
+  GcObject** stack;
+  size_t capacity;
+
+  if (required <= vm->stack_capacity) {
+    return true;
+  }
+
+  capacity = vm->stack_capacity == 0
+      ? GC_INITIAL_STACK_CAPACITY
+      : vm->stack_capacity * 2;
+  while (capacity < required) {
+    capacity *= 2;
+  }
+
+  stack = (GcObject**)realloc(vm->stack, capacity * sizeof(GcObject*));
+  if (stack == NULL) {
+    return false;
+  }
+
+  vm->stack = stack;
+  vm->stack_capacity = capacity;
+  return true;
+}
 
 static void mark(GcObject* object) {
   if (object == NULL || object->marked) {
@@ -104,11 +130,12 @@ void gc_vm_free(GcVm* vm) {
 
   vm->stack_size = 0;
   gc_collect(vm);
+  free(vm->stack);
   free(vm);
 }
 
 bool gc_push(GcVm* vm, GcObject* object) {
-  if (vm == NULL || vm->stack_size >= GC_STACK_MAX) {
+  if (vm == NULL || !ensure_stack_capacity(vm, vm->stack_size + 1)) {
     return false;
   }
 
@@ -125,7 +152,13 @@ GcObject* gc_pop(GcVm* vm) {
 }
 
 bool gc_push_int(GcVm* vm, int value) {
-  GcObject* object = new_object(vm, GC_OBJ_INT);
+  GcObject* object;
+
+  if (vm == NULL || !ensure_stack_capacity(vm, vm->stack_size + 1)) {
+    return false;
+  }
+
+  object = new_object(vm, GC_OBJ_INT);
   if (object == NULL) {
     return false;
   }
@@ -143,6 +176,10 @@ GcObject* gc_push_pair(GcVm* vm) {
   GcObject* head;
 
   if (vm == NULL || vm->stack_size < 2) {
+    return NULL;
+  }
+
+  if (!ensure_stack_capacity(vm, vm->stack_size + 1)) {
     return NULL;
   }
 
@@ -184,6 +221,10 @@ size_t gc_threshold(const GcVm* vm) {
 
 size_t gc_stack_size(const GcVm* vm) {
   return vm == NULL ? 0 : vm->stack_size;
+}
+
+size_t gc_stack_capacity(const GcVm* vm) {
+  return vm == NULL ? 0 : vm->stack_capacity;
 }
 
 GcObjectType gc_object_type(const GcObject* object) {

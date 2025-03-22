@@ -67,11 +67,32 @@ static void test_cycles_are_supported(void) {
   gc_vm_free(vm);
 }
 
+static void test_root_stack_grows(void) {
+  GcVm* vm = gc_vm_new();
+  size_t index;
+
+  for (index = 0; index < 4096; index++) {
+    check(gc_push_int(vm, (int)index), "dynamic root push succeeds");
+  }
+
+  check(gc_stack_size(vm) == 4096, "root stack holds 4096 entries");
+  check(gc_stack_capacity(vm) >= 4096, "root stack capacity grows");
+  check(gc_collect(vm) == 0, "all dynamic roots remain reachable");
+
+  for (index = 0; index < 4096; index++) {
+    gc_pop(vm);
+  }
+
+  check(gc_collect(vm) == 4096, "dynamic roots are collected after pop");
+  gc_vm_free(vm);
+}
+
 int main(void) {
   test_roots_are_preserved();
   test_unreachable_objects_are_collected();
   test_nested_objects_are_reached();
   test_cycles_are_supported();
+  test_root_stack_grows();
 
   if (failures != 0) {
     fprintf(stderr, "%d test(s) failed.\n", failures);

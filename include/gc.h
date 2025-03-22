@@ -25,6 +25,7 @@ size_t gc_collect(GcVm* vm);
 size_t gc_object_count(const GcVm* vm);
 size_t gc_threshold(const GcVm* vm);
 size_t gc_stack_size(const GcVm* vm);
+size_t gc_stack_capacity(const GcVm* vm);
 
 GcObjectType gc_object_type(const GcObject* object);
 int gc_int_value(const GcObject* object);
