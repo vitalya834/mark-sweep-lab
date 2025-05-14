@@ -87,12 +87,30 @@ static void test_root_stack_grows(void) {
   gc_vm_free(vm);
 }
 
+static void test_deep_graph_does_not_use_call_stack(void) {
+  GcVm* vm = gc_vm_new();
+  size_t index;
+
+  gc_push_int(vm, 0);
+  for (index = 0; index < 10000; index++) {
+    check(gc_push_int(vm, (int)index), "deep graph leaf allocation succeeds");
+    check(gc_push_pair(vm) != NULL, "deep graph pair allocation succeeds");
+  }
+
+  check(gc_object_count(vm) == 20001, "deep graph contains every object");
+  check(gc_collect(vm) == 0, "deep graph remains reachable");
+  gc_pop(vm);
+  check(gc_collect(vm) == 20001, "deep graph is collected without recursion");
+  gc_vm_free(vm);
+}
+
 int main(void) {
   test_roots_are_preserved();
   test_unreachable_objects_are_collected();
   test_nested_objects_are_reached();
   test_cycles_are_supported();
   test_root_stack_grows();
+  test_deep_graph_does_not_use_call_stack();
 
   if (failures != 0) {
     fprintf(stderr, "%d test(s) failed.\n", failures);

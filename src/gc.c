@@ -53,22 +53,46 @@ static bool ensure_stack_capacity(GcVm* vm, size_t required) {
   return true;
 }
 
-static void mark(GcObject* object) {
-  if (object == NULL || object->marked) {
-    return;
-  }
-
-  object->marked = true;
-  if (object->type == GC_OBJ_PAIR) {
-    mark(object->as.pair.head);
-    mark(object->as.pair.tail);
-  }
-}
-
 static void mark_roots(GcVm* vm) {
   size_t index;
+  bool changed;
+
   for (index = 0; index < vm->stack_size; index++) {
-    mark(vm->stack[index]);
+    if (vm->stack[index] != NULL) {
+      vm->stack[index]->marked = true;
+    }
+  }
+
+  /*
+   * Propagate marks iteratively. This intentionally trades some speed for a
+   * collector that does not consume the C call stack on deeply nested graphs.
+   */
+  do {
+    GcObject* object;
+    changed = false;
+
+    for (object = vm->first_object; object != NULL; object = object->next) {
+      if (object->marked && object->type == GC_OBJ_PAIR) {
+        GcObject* head = object->as.pair.head;
+        GcObject* tail = object->as.pair.tail;
+
+        if (head != NULL && !head->marked) {
+          head->marked = true;
+          changed = true;
+        }
+        if (tail != NULL && !tail->marked) {
+          tail->marked = true;
+          changed = true;
+        }
+      }
+    }
+  } while (changed);
+}
+
+static void clear_marks(GcVm* vm) {
+  GcObject* object;
+  for (object = vm->first_object; object != NULL; object = object->next) {
+    object->marked = false;
   }
 }
 
@@ -203,6 +227,7 @@ size_t gc_collect(GcVm* vm) {
     return 0;
   }
 
+  clear_marks(vm);
   mark_roots(vm);
   collected = sweep(vm);
   vm->threshold = vm->object_count == 0
