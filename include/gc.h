@@ -10,7 +10,8 @@ typedef struct GcVm GcVm;
 
 typedef enum {
   GC_OBJ_INT,
-  GC_OBJ_PAIR
+  GC_OBJ_PAIR,
+  GC_OBJ_STRING
 } GcObjectType;
 
 GcVm* gc_vm_new(void);
@@ -19,6 +20,7 @@ void gc_vm_free(GcVm* vm);
 bool gc_push(GcVm* vm, GcObject* object);
 GcObject* gc_pop(GcVm* vm);
 bool gc_push_int(GcVm* vm, int value);
+bool gc_push_string(GcVm* vm, const char* value);
 GcObject* gc_push_pair(GcVm* vm);
 
 size_t gc_collect(GcVm* vm);
@@ -29,6 +31,7 @@ size_t gc_stack_capacity(const GcVm* vm);
 
 GcObjectType gc_object_type(const GcObject* object);
 int gc_int_value(const GcObject* object);
+const char* gc_string_value(const GcObject* object);
 GcObject* gc_pair_head(const GcObject* object);
 GcObject* gc_pair_tail(const GcObject* object);
 void gc_pair_set_head(GcObject* pair, GcObject* head);

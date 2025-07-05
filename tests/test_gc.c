@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int failures = 0;
 
@@ -104,6 +105,19 @@ static void test_deep_graph_does_not_use_call_stack(void) {
   gc_vm_free(vm);
 }
 
+static void test_strings_are_managed(void) {
+  GcVm* vm = gc_vm_new();
+  GcObject* string;
+
+  check(gc_push_string(vm, "mark and sweep"), "string allocation succeeds");
+  string = gc_pop(vm);
+  check(gc_object_type(string) == GC_OBJ_STRING, "object reports string type");
+  check(strcmp(gc_string_value(string), "mark and sweep") == 0,
+        "managed string keeps its value");
+  check(gc_collect(vm) == 1, "unreachable string is collected");
+  gc_vm_free(vm);
+}
+
 int main(void) {
   test_roots_are_preserved();
   test_unreachable_objects_are_collected();
@@ -111,6 +125,7 @@ int main(void) {
   test_cycles_are_supported();
   test_root_stack_grows();
   test_deep_graph_does_not_use_call_stack();
+  test_strings_are_managed();
 
   if (failures != 0) {
     fprintf(stderr, "%d test(s) failed.\n", failures);

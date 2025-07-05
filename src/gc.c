@@ -1,6 +1,7 @@
 #include "gc.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 #define GC_INITIAL_STACK_CAPACITY 16
 #define GC_INITIAL_THRESHOLD 8
@@ -12,6 +13,7 @@ struct GcObject {
 
   union {
     int value;
+    char* string;
     struct {
       struct GcObject* head;
       struct GcObject* tail;
@@ -104,6 +106,9 @@ static size_t sweep(GcVm* vm) {
     if (!(*object)->marked) {
       GcObject* unreachable = *object;
       *object = unreachable->next;
+      if (unreachable->type == GC_OBJ_STRING) {
+        free(unreachable->as.string);
+      }
       free(unreachable);
       vm->object_count--;
       collected++;
@@ -194,6 +199,36 @@ bool gc_push_int(GcVm* vm, int value) {
   return true;
 }
 
+bool gc_push_string(GcVm* vm, const char* value) {
+  GcObject* object;
+  char* copy;
+  size_t length;
+
+  if (vm == NULL || value == NULL ||
+      !ensure_stack_capacity(vm, vm->stack_size + 1)) {
+    return false;
+  }
+
+  length = strlen(value);
+  copy = (char*)malloc(length + 1);
+  if (copy == NULL) {
+    return false;
+  }
+  memcpy(copy, value, length + 1);
+
+  object = new_object(vm, GC_OBJ_STRING);
+  if (object == NULL) {
+    free(copy);
+    return false;
+  }
+
+  object->as.string = copy;
+  if (!gc_push(vm, object)) {
+    return false;
+  }
+  return true;
+}
+
 GcObject* gc_push_pair(GcVm* vm) {
   GcObject* object;
   GcObject* tail;
@@ -260,6 +295,12 @@ int gc_int_value(const GcObject* object) {
   return object == NULL || object->type != GC_OBJ_INT ? 0 : object->as.value;
 }
 
+const char* gc_string_value(const GcObject* object) {
+  return object == NULL || object->type != GC_OBJ_STRING
+      ? NULL
+      : object->as.string;
+}
+
 GcObject* gc_pair_head(const GcObject* object) {
   return object == NULL || object->type != GC_OBJ_PAIR
       ? NULL
@@ -291,6 +332,11 @@ void gc_object_print(const GcObject* object, FILE* stream) {
 
   if (object->type == GC_OBJ_INT) {
     fprintf(stream, "%d", object->as.value);
+    return;
+  }
+
+  if (object->type == GC_OBJ_STRING) {
+    fprintf(stream, "\"%s\"", object->as.string);
     return;
   }
 
