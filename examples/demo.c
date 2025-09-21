@@ -5,6 +5,7 @@
 int main(void) {
   GcVm* vm = gc_vm_new();
   GcObject* root;
+  GcStats stats;
 
   if (vm == NULL ||
       !gc_push_int(vm, 1) ||
@@ -27,6 +28,9 @@ int main(void) {
   printf("Objects before collection: %zu\n", gc_object_count(vm));
   printf("Collected: %zu\n", gc_collect(vm));
   printf("Objects after collection: %zu\n", gc_object_count(vm));
+  stats = gc_get_stats(vm);
+  printf("Lifetime allocations: %zu, collections: %zu\n",
+         stats.allocations, stats.collections);
 
   gc_vm_free(vm);
   return 0;

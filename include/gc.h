@@ -14,6 +14,15 @@ typedef enum {
   GC_OBJ_STRING
 } GcObjectType;
 
+typedef struct {
+  size_t allocations;
+  size_t collections;
+  size_t collected;
+  size_t live_objects;
+  size_t threshold;
+  size_t roots;
+} GcStats;
+
 GcVm* gc_vm_new(void);
 void gc_vm_free(GcVm* vm);
 
@@ -28,6 +37,8 @@ size_t gc_object_count(const GcVm* vm);
 size_t gc_threshold(const GcVm* vm);
 size_t gc_stack_size(const GcVm* vm);
 size_t gc_stack_capacity(const GcVm* vm);
+void gc_set_threshold(GcVm* vm, size_t threshold);
+GcStats gc_get_stats(const GcVm* vm);
 
 GcObjectType gc_object_type(const GcObject* object);
 int gc_int_value(const GcObject* object);

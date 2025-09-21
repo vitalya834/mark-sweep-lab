@@ -28,6 +28,9 @@ struct GcVm {
   GcObject* first_object;
   size_t object_count;
   size_t threshold;
+  size_t allocations;
+  size_t collections;
+  size_t collected;
 };
 
 static bool ensure_stack_capacity(GcVm* vm, size_t required) {
@@ -141,6 +144,7 @@ static GcObject* new_object(GcVm* vm, GcObjectType type) {
   object->next = vm->first_object;
   vm->first_object = object;
   vm->object_count++;
+  vm->allocations++;
   return object;
 }
 
@@ -265,6 +269,8 @@ size_t gc_collect(GcVm* vm) {
   clear_marks(vm);
   mark_roots(vm);
   collected = sweep(vm);
+  vm->collections++;
+  vm->collected += collected;
   vm->threshold = vm->object_count == 0
       ? GC_INITIAL_THRESHOLD
       : vm->object_count * 2;
@@ -285,6 +291,25 @@ size_t gc_stack_size(const GcVm* vm) {
 
 size_t gc_stack_capacity(const GcVm* vm) {
   return vm == NULL ? 0 : vm->stack_capacity;
+}
+
+void gc_set_threshold(GcVm* vm, size_t threshold) {
+  if (vm != NULL) {
+    vm->threshold = threshold == 0 ? 1 : threshold;
+  }
+}
+
+GcStats gc_get_stats(const GcVm* vm) {
+  GcStats stats = {0, 0, 0, 0, 0, 0};
+  if (vm != NULL) {
+    stats.allocations = vm->allocations;
+    stats.collections = vm->collections;
+    stats.collected = vm->collected;
+    stats.live_objects = vm->object_count;
+    stats.threshold = vm->threshold;
+    stats.roots = vm->stack_size;
+  }
+  return stats;
 }
 
 GcObjectType gc_object_type(const GcObject* object) {

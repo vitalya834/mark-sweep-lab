@@ -118,6 +118,26 @@ static void test_strings_are_managed(void) {
   gc_vm_free(vm);
 }
 
+static void test_statistics_and_threshold(void) {
+  GcVm* vm = gc_vm_new();
+  GcStats stats;
+
+  gc_set_threshold(vm, 64);
+  gc_push_int(vm, 1);
+  gc_push_string(vm, "two");
+  gc_pop(vm);
+  gc_collect(vm);
+
+  stats = gc_get_stats(vm);
+  check(stats.allocations == 2, "statistics count allocations");
+  check(stats.collections == 1, "statistics count collections");
+  check(stats.collected == 1, "statistics count collected objects");
+  check(stats.live_objects == 1, "statistics report live objects");
+  check(stats.roots == 1, "statistics report roots");
+  check(stats.threshold == 2, "automatic threshold follows live heap");
+  gc_vm_free(vm);
+}
+
 int main(void) {
   test_roots_are_preserved();
   test_unreachable_objects_are_collected();
@@ -126,6 +146,7 @@ int main(void) {
   test_root_stack_grows();
   test_deep_graph_does_not_use_call_stack();
   test_strings_are_managed();
+  test_statistics_and_threshold();
 
   if (failures != 0) {
     fprintf(stderr, "%d test(s) failed.\n", failures);
