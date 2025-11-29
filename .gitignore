@@ -1,2 +1,9 @@
 *~
 markandsweep
+build/
+demo
+demo.exe
+test_gc
+test_gc.exe
+*.obj
+*.pdb
