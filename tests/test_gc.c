@@ -138,6 +138,26 @@ static void test_statistics_and_threshold(void) {
   gc_vm_free(vm);
 }
 
+static void test_root_scopes_release_temporaries(void) {
+  GcVm* vm = gc_vm_new();
+  GcRootScope scope;
+
+  gc_push_int(vm, 1);
+  scope = gc_scope_begin(vm);
+  gc_push_string(vm, "temporary");
+  gc_push_int(vm, 3);
+
+  check(gc_peek(vm, 0) != NULL, "peek returns the newest root");
+  check(gc_peek(vm, 2) != NULL, "peek reaches an older root");
+  check(gc_peek(vm, 3) == NULL, "peek rejects an invalid distance");
+
+  gc_scope_end(vm, scope);
+  check(gc_stack_size(vm) == 1, "ending scope restores root count");
+  check(gc_collect(vm) == 2, "scope temporaries become collectible");
+  check(gc_object_count(vm) == 1, "outer root stays alive");
+  gc_vm_free(vm);
+}
+
 int main(void) {
   test_roots_are_preserved();
   test_unreachable_objects_are_collected();
@@ -147,6 +167,7 @@ int main(void) {
   test_deep_graph_does_not_use_call_stack();
   test_strings_are_managed();
   test_statistics_and_threshold();
+  test_root_scopes_release_temporaries();
 
   if (failures != 0) {
     fprintf(stderr, "%d test(s) failed.\n", failures);

@@ -184,6 +184,25 @@ GcObject* gc_pop(GcVm* vm) {
   return vm->stack[--vm->stack_size];
 }
 
+GcObject* gc_peek(const GcVm* vm, size_t distance) {
+  if (vm == NULL || distance >= vm->stack_size) {
+    return NULL;
+  }
+  return vm->stack[vm->stack_size - 1 - distance];
+}
+
+GcRootScope gc_scope_begin(const GcVm* vm) {
+  GcRootScope scope;
+  scope.root_count = vm == NULL ? 0 : vm->stack_size;
+  return scope;
+}
+
+void gc_scope_end(GcVm* vm, GcRootScope scope) {
+  if (vm != NULL && scope.root_count <= vm->stack_size) {
+    vm->stack_size = scope.root_count;
+  }
+}
+
 bool gc_push_int(GcVm* vm, int value) {
   GcObject* object;
 

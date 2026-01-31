@@ -23,11 +23,18 @@ typedef struct {
   size_t roots;
 } GcStats;
 
+typedef struct {
+  size_t root_count;
+} GcRootScope;
+
 GcVm* gc_vm_new(void);
 void gc_vm_free(GcVm* vm);
 
 bool gc_push(GcVm* vm, GcObject* object);
 GcObject* gc_pop(GcVm* vm);
+GcObject* gc_peek(const GcVm* vm, size_t distance);
+GcRootScope gc_scope_begin(const GcVm* vm);
+void gc_scope_end(GcVm* vm, GcRootScope scope);
 bool gc_push_int(GcVm* vm, int value);
 bool gc_push_string(GcVm* vm, const char* value);
 GcObject* gc_push_pair(GcVm* vm);
