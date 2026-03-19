@@ -31,7 +31,34 @@ struct GcVm {
   size_t allocations;
   size_t collections;
   size_t collected;
+  struct GcWeakRef* first_weak_ref;
 };
+
+struct GcWeakRef {
+  GcObject* target;
+  struct GcWeakRef* next;
+};
+
+static bool owns_object(const GcVm* vm, const GcObject* candidate) {
+  const GcObject* object;
+  for (object = vm->first_object; object != NULL; object = object->next) {
+    if (object == candidate) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void clear_weak_refs(GcVm* vm, const GcObject* target) {
+  GcWeakRef* weak_ref;
+  for (weak_ref = vm->first_weak_ref;
+       weak_ref != NULL;
+       weak_ref = weak_ref->next) {
+    if (weak_ref->target == target) {
+      weak_ref->target = NULL;
+    }
+  }
+}
 
 static bool ensure_stack_capacity(GcVm* vm, size_t required) {
   GcObject** stack;
@@ -109,6 +136,7 @@ static size_t sweep(GcVm* vm) {
     if (!(*object)->marked) {
       GcObject* unreachable = *object;
       *object = unreachable->next;
+      clear_weak_refs(vm, unreachable);
       if (unreachable->type == GC_OBJ_STRING) {
         free(unreachable->as.string);
       }
@@ -157,6 +185,8 @@ GcVm* gc_vm_new(void) {
 }
 
 void gc_vm_free(GcVm* vm) {
+  GcWeakRef* weak_ref;
+
   if (vm == NULL) {
     return;
   }
@@ -164,6 +194,14 @@ void gc_vm_free(GcVm* vm) {
   vm->stack_size = 0;
   gc_collect(vm);
   free(vm->stack);
+
+  weak_ref = vm->first_weak_ref;
+  while (weak_ref != NULL) {
+    GcWeakRef* next = weak_ref->next;
+    free(weak_ref);
+    weak_ref = next;
+  }
+
   free(vm);
 }
 
@@ -389,4 +427,44 @@ void gc_object_print(const GcObject* object, FILE* stream) {
   fputs(", ", stream);
   gc_object_print(object->as.pair.tail, stream);
   fputc(')', stream);
+}
+
+GcWeakRef* gc_weak_ref_new(GcVm* vm, GcObject* target) {
+  GcWeakRef* weak_ref;
+
+  if (vm == NULL || target == NULL || !owns_object(vm, target)) {
+    return NULL;
+  }
+
+  weak_ref = (GcWeakRef*)malloc(sizeof(GcWeakRef));
+  if (weak_ref == NULL) {
+    return NULL;
+  }
+
+  weak_ref->target = target;
+  weak_ref->next = vm->first_weak_ref;
+  vm->first_weak_ref = weak_ref;
+  return weak_ref;
+}
+
+void gc_weak_ref_free(GcVm* vm, GcWeakRef* weak_ref) {
+  GcWeakRef** current;
+
+  if (vm == NULL || weak_ref == NULL) {
+    return;
+  }
+
+  current = &vm->first_weak_ref;
+  while (*current != NULL) {
+    if (*current == weak_ref) {
+      *current = weak_ref->next;
+      free(weak_ref);
+      return;
+    }
+    current = &(*current)->next;
+  }
+}
+
+GcObject* gc_weak_ref_get(const GcWeakRef* weak_ref) {
+  return weak_ref == NULL ? NULL : weak_ref->target;
 }

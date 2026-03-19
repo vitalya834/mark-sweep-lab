@@ -7,6 +7,7 @@
 
 typedef struct GcObject GcObject;
 typedef struct GcVm GcVm;
+typedef struct GcWeakRef GcWeakRef;
 
 typedef enum {
   GC_OBJ_INT,
@@ -55,5 +56,9 @@ GcObject* gc_pair_tail(const GcObject* object);
 void gc_pair_set_head(GcObject* pair, GcObject* head);
 void gc_pair_set_tail(GcObject* pair, GcObject* tail);
 void gc_object_print(const GcObject* object, FILE* stream);
+
+GcWeakRef* gc_weak_ref_new(GcVm* vm, GcObject* target);
+void gc_weak_ref_free(GcVm* vm, GcWeakRef* weak_ref);
+GcObject* gc_weak_ref_get(const GcWeakRef* weak_ref);
 
 #endif

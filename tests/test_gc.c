@@ -158,6 +158,26 @@ static void test_root_scopes_release_temporaries(void) {
   gc_vm_free(vm);
 }
 
+static void test_weak_references_do_not_keep_objects_alive(void) {
+  GcVm* vm = gc_vm_new();
+  GcObject* object;
+  GcWeakRef* weak_ref;
+
+  gc_push_string(vm, "cached value");
+  object = gc_peek(vm, 0);
+  weak_ref = gc_weak_ref_new(vm, object);
+
+  check(weak_ref != NULL, "weak reference allocation succeeds");
+  check(gc_weak_ref_get(weak_ref) == object, "weak reference exposes target");
+
+  gc_pop(vm);
+  check(gc_collect(vm) == 1, "weak target remains collectible");
+  check(gc_weak_ref_get(weak_ref) == NULL, "collected weak target is cleared");
+
+  gc_weak_ref_free(vm, weak_ref);
+  gc_vm_free(vm);
+}
+
 int main(void) {
   test_roots_are_preserved();
   test_unreachable_objects_are_collected();
@@ -168,6 +188,7 @@ int main(void) {
   test_strings_are_managed();
   test_statistics_and_threshold();
   test_root_scopes_release_temporaries();
+  test_weak_references_do_not_keep_objects_alive();
 
   if (failures != 0) {
     fprintf(stderr, "%d test(s) failed.\n", failures);
