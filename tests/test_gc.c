@@ -178,6 +178,30 @@ static void test_weak_references_do_not_keep_objects_alive(void) {
   gc_vm_free(vm);
 }
 
+static void test_heap_graph_export(void) {
+  GcVm* vm = gc_vm_new();
+  FILE* stream = tmpfile();
+  char output[1024] = {0};
+  size_t bytes_read;
+
+  gc_push_string(vm, "left");
+  gc_push_int(vm, 42);
+  gc_push_pair(vm);
+  gc_heap_dump_dot(vm, stream);
+
+  rewind(stream);
+  bytes_read = fread(output, 1, sizeof(output) - 1, stream);
+  output[bytes_read] = '\0';
+
+  check(strstr(output, "digraph heap") != NULL, "DOT output has graph header");
+  check(strstr(output, "string: left") != NULL, "DOT output labels strings");
+  check(strstr(output, "int: 42") != NULL, "DOT output labels integers");
+  check(strstr(output, "label=\"head\"") != NULL, "DOT output includes edges");
+
+  fclose(stream);
+  gc_vm_free(vm);
+}
+
 int main(void) {
   test_roots_are_preserved();
   test_unreachable_objects_are_collected();
@@ -189,6 +213,7 @@ int main(void) {
   test_statistics_and_threshold();
   test_root_scopes_release_temporaries();
   test_weak_references_do_not_keep_objects_alive();
+  test_heap_graph_export();
 
   if (failures != 0) {
     fprintf(stderr, "%d test(s) failed.\n", failures);

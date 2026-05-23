@@ -429,6 +429,77 @@ void gc_object_print(const GcObject* object, FILE* stream) {
   fputc(')', stream);
 }
 
+static size_t object_index(const GcVm* vm, const GcObject* target) {
+  const GcObject* object;
+  size_t index = 0;
+
+  for (object = vm->first_object; object != NULL; object = object->next) {
+    if (object == target) {
+      return index;
+    }
+    index++;
+  }
+  return (size_t)-1;
+}
+
+static void print_dot_string(FILE* stream, const char* value) {
+  const unsigned char* cursor = (const unsigned char*)value;
+  while (*cursor != '\0') {
+    if (*cursor == '"' || *cursor == '\\') {
+      fputc('\\', stream);
+      fputc(*cursor, stream);
+    } else if (*cursor == '\n') {
+      fputs("\\n", stream);
+    } else if (*cursor >= 32) {
+      fputc(*cursor, stream);
+    }
+    cursor++;
+  }
+}
+
+void gc_heap_dump_dot(const GcVm* vm, FILE* stream) {
+  const GcObject* object;
+  size_t index = 0;
+
+  if (vm == NULL || stream == NULL) {
+    return;
+  }
+
+  fputs("digraph heap {\n", stream);
+  fputs("  rankdir=LR;\n", stream);
+
+  for (object = vm->first_object; object != NULL; object = object->next) {
+    fprintf(stream, "  n%zu [label=\"", index);
+    if (object->type == GC_OBJ_INT) {
+      fprintf(stream, "int: %d", object->as.value);
+    } else if (object->type == GC_OBJ_STRING) {
+      fputs("string: ", stream);
+      print_dot_string(stream, object->as.string);
+    } else {
+      fputs("pair", stream);
+    }
+    fputs("\"];\n", stream);
+    index++;
+  }
+
+  index = 0;
+  for (object = vm->first_object; object != NULL; object = object->next) {
+    if (object->type == GC_OBJ_PAIR) {
+      size_t head = object_index(vm, object->as.pair.head);
+      size_t tail = object_index(vm, object->as.pair.tail);
+      if (head != (size_t)-1) {
+        fprintf(stream, "  n%zu -> n%zu [label=\"head\"];\n", index, head);
+      }
+      if (tail != (size_t)-1) {
+        fprintf(stream, "  n%zu -> n%zu [label=\"tail\"];\n", index, tail);
+      }
+    }
+    index++;
+  }
+
+  fputs("}\n", stream);
+}
+
 GcWeakRef* gc_weak_ref_new(GcVm* vm, GcObject* target) {
   GcWeakRef* weak_ref;
 
