@@ -28,6 +28,7 @@ struct GcVm {
   GcObject* first_object;
   size_t object_count;
   size_t threshold;
+  size_t minimum_threshold;
   size_t allocations;
   size_t collections;
   size_t collected;
@@ -180,6 +181,7 @@ GcVm* gc_vm_new(void) {
   GcVm* vm = (GcVm*)calloc(1, sizeof(GcVm));
   if (vm != NULL) {
     vm->threshold = GC_INITIAL_THRESHOLD;
+    vm->minimum_threshold = GC_INITIAL_THRESHOLD;
   }
   return vm;
 }
@@ -328,9 +330,10 @@ size_t gc_collect(GcVm* vm) {
   collected = sweep(vm);
   vm->collections++;
   vm->collected += collected;
-  vm->threshold = vm->object_count == 0
-      ? GC_INITIAL_THRESHOLD
-      : vm->object_count * 2;
+  vm->threshold = vm->object_count * 2;
+  if (vm->threshold < vm->minimum_threshold) {
+    vm->threshold = vm->minimum_threshold;
+  }
   return collected;
 }
 
@@ -352,7 +355,8 @@ size_t gc_stack_capacity(const GcVm* vm) {
 
 void gc_set_threshold(GcVm* vm, size_t threshold) {
   if (vm != NULL) {
-    vm->threshold = threshold == 0 ? 1 : threshold;
+    vm->minimum_threshold = threshold == 0 ? 1 : threshold;
+    vm->threshold = vm->minimum_threshold;
   }
 }
 

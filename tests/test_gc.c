@@ -134,7 +134,7 @@ static void test_statistics_and_threshold(void) {
   check(stats.collected == 1, "statistics count collected objects");
   check(stats.live_objects == 1, "statistics report live objects");
   check(stats.roots == 1, "statistics report roots");
-  check(stats.threshold == 2, "automatic threshold follows live heap");
+  check(stats.threshold == 64, "configured minimum threshold is retained");
   gc_vm_free(vm);
 }
 
